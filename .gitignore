@@ -1,0 +1,26 @@
+# Python / Virtual Envs
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environment Variables & Secrets
+.env
+*.pem
+
+# Frontend & Node
+node_modules/
+dist/
+.build/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+
+# Local Database & Storage
+*.sqlite3
+*.db
+uploads/
