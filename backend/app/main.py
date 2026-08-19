@@ -1,18 +1,23 @@
+import os
+from dotenv import load_dotenv
 from fastapi import FastAPI
-from app.database import Base, engine
-from app.routers import invoices
 
-# Create tables if not present
+# Carga las variables de entorno definidas en el archivo .env
+load_dotenv()
+
+from app.database import Base, engine
+from app.routers import invoices, uploads
+
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Intelligent Expense Extractor API",
-    version="0.1.0",
+    version="0.2.0",
     description="Backend API for managing invoices, line items, and receipt OCR processing."
 )
 
-# Register routers
 app.include_router(invoices.router)
+app.include_router(uploads.router)
 
 
 @app.get("/")
