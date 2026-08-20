@@ -102,3 +102,28 @@ def test_delete_invoice_not_found(client):
     response = client.delete(f"/invoices/{fake_id}")
     assert response.status_code == status.HTTP_404_NOT_FOUND
     assert response.json()["detail"] == f"Invoice with ID '{fake_id}' not found"
+
+def test_get_invoices_with_pagination_and_filters(client, sample_invoice_payload):
+    """Verify GET /invoices/ query parameters for vendor searching, dates, and pagination."""
+    # Create test invoice
+    client.post("/invoices/", json=sample_invoice_payload)
+
+    # 1. Filter by existing vendor substring
+    res = client.get("/invoices/?vendor_name=Kíki")
+    assert res.status_code == status.HTTP_200_OK
+    assert len(res.json()) == 1
+
+    # 2. Filter by non-existent vendor
+    res = client.get("/invoices/?vendor_name=Walmart")
+    assert res.status_code == status.HTTP_200_OK
+    assert len(res.json()) == 0
+
+    # 3. Filter by valid date range
+    res = client.get("/invoices/?start_date=2026-01-01&end_date=2026-12-31")
+    assert res.status_code == status.HTTP_200_OK
+    assert len(res.json()) == 1
+
+    # 4. Pagination offset beyond available items
+    res = client.get("/invoices/?skip=10&limit=10")
+    assert res.status_code == status.HTTP_200_OK
+    assert len(res.json()) == 0
