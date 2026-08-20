@@ -29,7 +29,7 @@ async def upload_and_process_receipt(
         )
 
     # 1. Save file locally
-    file_ext = os.path.splitext(file.filename)[1]
+    file_ext = os.path.splitext(file.filename)[1] if file.filename else ""
     saved_filename = f"{uuid.uuid4()}{file_ext}"
     file_path = os.path.join(UPLOAD_DIR, saved_filename)
 
@@ -37,16 +37,16 @@ async def upload_and_process_receipt(
         content = await file.read()
         buffer.write(content)
 
-    # 2. Extract structured data via Tesseract + LLM
+    # 2. Extract structured data via OCR + LLM
     try:
-        parsed_data: schemas.InvoiceCreate = process_document(file_path, file.content_type)
+        parsed_data: schemas.ExtractedInvoice = process_document(file_path, file.content_type)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error processing OCR document: {str(e)}"
         )
 
-    # 3. Persist Invoice ORM object with nested items
+    # 3. Persist Invoice ORM object
     db_invoice = models.Invoice(
         vendor_name=parsed_data.vendor_name,
         invoice_number=parsed_data.invoice_number,
@@ -55,7 +55,7 @@ async def upload_and_process_receipt(
         total_amount=parsed_data.total_amount,
     )
 
-    # Add nested line items if extracted
+    # Add nested line items and their corresponding taxes
     for item in parsed_data.items:
         db_item = models.LineItem(
             description=item.description,
@@ -63,14 +63,17 @@ async def upload_and_process_receipt(
             unit_price=item.unit_price,
             total_price=item.total_price,
         )
-        for tax in item.taxes:
+        
+        # Safely extract item-level taxes if present
+        item_taxes = getattr(item, "taxes", [])
+        for tax in item_taxes:
             db_tax = models.Tax(
-                tax_name=tax.tax_name,
-                tax_rate=tax.tax_rate,
-                tax_amount=tax.tax_amount
+                name=tax.tax_name,
+                rate=tax.tax_rate if tax.tax_rate is not None else 0.0,
+                amount=tax.amount
             )
             db_item.taxes.append(db_tax)
-            
+
         db_invoice.items.append(db_item)
 
     db.add(db_invoice)
